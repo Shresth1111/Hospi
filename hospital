@@ -1,0 +1,205 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+#include <iomanip>
+
+using namespace std;
+
+/** 
+ *  UI HELPER FUNCTIONS
+ *  Using modern formatting and inline for efficiency.
+ */
+inline void PrintHeader(string title) {
+    cout << "\n==========================================" << endl;
+    cout << "   " << title << endl;
+    cout << "==========================================" << endl;
+}
+
+// ---------------------------------------------------------
+
+class HealthcareFacility {
+protected:
+    string address;
+public:
+    static int availableBeds;
+    
+    HealthcareFacility() : address("4 Park Lane, Medical District") {}
+    virtual ~HealthcareFacility() {} // Virtual destructor for inheritance safety
+};
+
+int HealthcareFacility::availableBeds = 500;
+
+/**
+ *  BASE INFORMATION CLASS
+ *  Encapsulates common attributes for both staff and patients.
+ */
+class PersonInfo : public HealthcareFacility {
+protected:
+    string fullName;
+    int age;
+
+public:
+    PersonInfo() : fullName("Unknown"), age(0) {}
+
+    virtual void inputDetails() {
+        cout << "Enter Full Name: ";
+        getline(cin >> ws, fullName); // Handles spaces in names
+        cout << "Enter Age: ";
+        cin >> age;
+    }
+
+    virtual void displayDetails() const {
+        cout << "Name: " << fullName << "\nAge: " << age << endl;
+    }
+};
+
+/**
+ *  PATIENT MANAGEMENT
+ */
+class Patient : public PersonInfo {
+    int patientID;
+
+public:
+    Patient() : patientID(0) {}
+
+    void inputDetails() override {
+        PrintHeader("Patient Admission");
+        PersonInfo::inputDetails();
+        cout << "Assign Patient ID: ";
+        cin >> patientID;
+        
+        availableBeds--; // Decrement static capacity
+        cout << "\nAdmission Successful. Remaining Beds: " << availableBeds << endl;
+    }
+
+    void displayDetails() const override {
+        cout << "--- Patient Record ---" << endl;
+        PersonInfo::displayDetails();
+        cout << "ID: " << patientID << endl;
+    }
+
+    int getID() const { return patientID; }
+};
+
+/**
+ *  STAFF & PAYROLL MANAGEMENT
+ */
+class Staff : public PersonInfo {
+    int staffID;
+    int roleType;
+    double monthlySalary;
+
+public:
+    Staff() : staffID(0), roleType(0), monthlySalary(0.0) {}
+
+    void inputDetails() override {
+        PrintHeader("Staff Registration");
+        PersonInfo::inputDetails();
+        cout << "Enter Staff ID: ";
+        cin >> staffID;
+        cout << "Roles: [1] Surgeon [2] Nurse [3] Admin [4] Support\nSelect Role: ";
+        cin >> roleType;
+    }
+
+    // Friend function to calculate salary based on performance/hours
+    friend void ProcessPayroll(Staff &s);
+
+    void displayDetails() const override {
+        PrintHeader("Employee Profile");
+        PersonInfo::displayDetails();
+        cout << "Staff ID: " << staffID << "\nCalculated Salary: $" << fixed << setprecision(2) << monthlySalary << endl;
+    }
+};
+
+void ProcessPayroll(Staff &s) {
+    int hours;
+    cout << "Enter total hours worked for Staff ID " << s.staffID << ": ";
+    cin >> hours;
+
+    // Logic: Higher rates for medical staff
+    switch (s.roleType) {
+        case 1: s.monthlySalary = 150.0 * hours; break;
+        case 2: s.monthlySalary = 80.0 * hours; break;
+        case 3: s.monthlySalary = 60.0 * hours; break;
+        default: s.monthlySalary = 40.0 * hours; break;
+    }
+}
+
+/**
+ *  BILLING MODULE
+ *  Demonstrating Operator Overloading
+ */
+class Invoice {
+    double baseCharge;
+    double roomCharge;
+
+public:
+    Invoice(double b = 0, double r = 0) : baseCharge(b), roomCharge(r) {}
+
+    void generate() {
+        cout << "Enter Base Treatment Cost: "; cin >> baseCharge;
+        cout << "Enter Room/Stay Cost: "; cin >> roomCharge;
+    }
+
+    // Overloading '+' to merge multiple service bills
+    Invoice operator+(const Invoice& other) {
+        return Invoice(baseCharge + other.baseCharge, roomCharge + other.roomCharge);
+    }
+
+    void print() const {
+        cout << "Total Payable: $" << (baseCharge + roomCharge) << " (Base: " << baseCharge << ", Room: " << roomCharge << ")" << endl;
+    }
+};
+
+/**
+ *  MAIN EXECUTION
+ */
+int main() {
+    vector<Patient> database; // Using Vector instead of fixed array for flexibility
+    int choice;
+
+    PrintHeader("XYZ SMART HOSPITAL SYSTEM");
+
+    do {
+        cout << "\n1. New Admission\n2. Search Patient\n3. Staff Payroll\n4. Billing\n0. Exit\nSelection: ";
+        cin >> choice;
+
+        if (choice == 1) {
+            Patient p;
+            p.inputDetails();
+            database.push_back(p);
+        } 
+        else if (choice == 2) {
+            int searchID;
+            bool found = false;
+            cout << "Enter Patient ID: "; cin >> searchID;
+            for (const auto& p : database) {
+                if (p.getID() == searchID) {
+                    p.displayDetails();
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) cout << "Record not found." << endl;
+        }
+        else if (choice == 3) {
+            Staff s;
+            s.inputDetails();
+            ProcessPayroll(s);
+            s.displayDetails();
+        }
+        else if (choice == 4) {
+            PrintHeader("BILLING SECTION");
+            Invoice surgery(0,0), pharmacy(0,0);
+            cout << "--- Surgery Bill ---\n"; surgery.generate();
+            cout << "--- Pharmacy Bill ---\n"; pharmacy.generate();
+            Invoice total = surgery + pharmacy;
+            total.print();
+        }
+
+    } while (choice != 0);
+
+    cout << "System Shutdown. Goodbye!" << endl;
+    return 0;
+}
